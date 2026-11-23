@@ -1,0 +1,30 @@
+# .github/workflows/build-s905x3-v217.yml
+name: Build S905X3 Bullseye 5.15.50 (V2.1.7引导)
+on:
+  workflow_dispatch:  # 手动点Run workflow触发
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout ophub源码 锁定commit 460c042（V2.1.7）
+        uses: actions/checkout@v4
+        with:
+          repository: ophub/amlogic-s9xxx-armbian
+          ref: 460c042
+          fetch-depth: 0  # 必须0，完整拉取，不然checkout历史commit失败
+
+      - name: 安装依赖
+        run: |
+          sudo apt update
+          sudo apt install -y $(cat compile-kernel/tools/script/ubuntu2204-build-armbian-depends)
+
+      - name: 执行打包 s905x3 + bullseye + 5.15.50
+        run: |
+          sudo ./rebuild.sh -b s905x3 -k 5.15.50 -d bullseye
+
+      - name: 上传镜像成品
+        uses: actions/upload-artifact@v4
+        with:
+          name: Armbian-s905x3-bullseye-5.15.50
+          path: build/output/images/*.img.gz
