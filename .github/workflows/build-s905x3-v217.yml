@@ -25,7 +25,8 @@ jobs:
         with:
           repository: ophub/amlogic-s9xxx-armbian
           ref: 460c042  # 锁定特定 commit
-          fetch-depth: 1  # 加速克隆，通常不需要完整历史
+          #fetch-depth: 1  # 加速克隆，通常不需要完整历史
+          fetch-depth: 0 # 获取完整历史，有助于定位短 SHA
 
       - name: 安装系统依赖
         run: |
