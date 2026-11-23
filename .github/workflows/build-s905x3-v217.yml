@@ -1,30 +1,56 @@
-# .github/workflows/build-s905x3-v217.yml
 name: Build S905X3 Bullseye 5.15.50 (V2.1.7引导)
+
 on:
-  workflow_dispatch:  # 手动点Run workflow触发
+  workflow_dispatch:  # 手动触发
+    inputs:
+      board:
+        description: 'Board name (e.g., s905x3)'
+        required: true
+        default: 's905x3'
+      kernel:
+        description: 'Kernel version (e.g., 5.15.50)'
+        required: true
+        default: '5.15.50'
+      distro:
+        description: 'Distribution (e.g., bullseye)'
+        required: true
+        default: 'bullseye'
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04  # 明确指定 Ubuntu 22.04，因为依赖脚本是针对 ubuntu2204 的
     steps:
-      - name: Checkout ophub源码 锁定commit 460c042（V2.1.7）
+      - name: Checkout ophub源码
         uses: actions/checkout@v4
         with:
           repository: ophub/amlogic-s9xxx-armbian
-          ref: 460c042
-          fetch-depth: 0  # 必须0，完整拉取，不然checkout历史commit失败
+          ref: 460c042  # 锁定特定 commit
+          fetch-depth: 1  # 加速克隆，通常不需要完整历史
 
-      - name: 安装依赖
+      - name: 安装系统依赖
         run: |
-          sudo apt update
-          sudo apt install -y $(cat compile-kernel/tools/script/ubuntu2204-build-armbian-depends)
+          sudo apt-get update
+          # 注意：请验证该文件在 commit 460c042 中是否存在且路径正确
+          # 如果文件不存在，可能需要手动安装常见依赖，如：
+          # sudo apt-get install -y git wget curl libssl-dev lsb-release etc.
+          if [ -f compile-kernel/tools/script/ubuntu2204-build-armbian-depends ]; then
+            sudo apt-get install -y $(cat compile-kernel/tools/script/ubuntu2204-build-armbian-depends)
+          else
+            echo "依赖文件未找到，尝试安装基础依赖"
+            sudo apt-get install -y git wget curl libssl-dev lsb-release qemu-user-static binfmt-support
+          fi
 
-      - name: 执行打包 s905x3 + bullseye + 5.15.50
+      - name: 执行构建
         run: |
-          sudo ./rebuild.sh -b s905x3 -k 5.15.50 -d bullseye
+          # 赋予执行权限
+          chmod +x ./build-armbian.sh
+          # 执行构建，参数根据实际脚本调整
+          # 注意：Ophub 的脚本可能需要以 root 运行，或者内部调用 sudo
+          sudo ./build-armbian.sh -b ${{ github.event.inputs.board }} -k ${{ github.event.inputs.kernel }} -d ${{ github.event.inputs.distro }}
 
       - name: 上传镜像成品
         uses: actions/upload-artifact@v4
         with:
-          name: Armbian-s905x3-bullseye-5.15.50
+          name: Armbian-${{ github.event.inputs.board }}-${{ github.event.inputs.distro }}-${{ github.event.inputs.kernel }}
           path: build/output/images/*.img.gz
+          # retention-days: 5  # 保留5天，避免占用过多存储空间
